@@ -81,11 +81,12 @@ sampling = {
 }
 
 
-def format_question(d): 
+def format_question(d):
     question = d["question"]
     options = d["options"]
-    for k, v in options.items(): 
-        question += f"\n{k}: {v}"
+
+    for option in options: 
+        question += f"\n{option['key']}: {option['value']}"
     return question
 
 
@@ -139,7 +140,7 @@ def main(
     ) 
     
     # using USMLE from MedQA - which is also part of bigbio
-    data = load_dataset('bigbio/med_qa', 'med_qa_en_source', 'test')
+    data = load_dataset('bigbio/med_qa', 'med_qa_en_source', split='test')
 
     outname = os.path.join(output_path, f"output_{model_name.split('/')[-1]}.json")
     if os.path.exists(outname): 
@@ -159,7 +160,7 @@ def main(
                 input=format_question(question), 
                 output="The Answer to the question is:",
                 **sampling
-            )
+            ).to("cuda")
             response = strip_special_chars(response)
             if starts_with_capital_letter(response): 
                 pbar.set_postfix_str(f"")

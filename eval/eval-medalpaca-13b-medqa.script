@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --job-name=alpaca-eval     # Specify job name
 #SBATCH --partition=frink            # Specify partition name
-#SBATCH --mem=32G
-#SBATCH --gres=gpu:v100-sxm2:1
+#SBATCH --mem=41G
+#SBATCH --gres=gpu:a100:1
 #SBATCH --time=08:00:00            # Set a limit on the total run time
 #SBATCH --output=logs_medalpaca13b_eval.o%j    # File name for standard output
 #SBATCH --error=errors_medalpaca13b_eval.e%j   # File name for standard error output
