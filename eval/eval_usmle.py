@@ -3,8 +3,7 @@ The questions can be downloaded at: https://huggingface.co/medalapca/
 
 Example evaluation: 
 
-Assume you have downloaded the steps into the folder "usmle" you can now evaluate 
-a medalpaca model: 
+you can now evaluate a medalpaca model: 
 
 ```bash
 export HF_HOME=/path/to/hf_cache
@@ -15,9 +14,9 @@ python eval_usmle.py \
     --base_model 'decapoda-research/llama-13b-hf' \
     --peft True \
     --load_in_8bit True \
-    --path_to_exams 'data/test/'
+    --output_path 'data/test/'
 
-This will create three new files in 'data/test', named stepX_MODELNAME.json. 
+This will create three new files in 'data/test', named output_MODELNAME.json. 
 
 The generation methods it hardcoded to the `sampling` dict, feel free to adapt this
 
@@ -34,6 +33,8 @@ import string
 
 from tqdm.autonotebook import tqdm
 from medalpaca.inferer import Inferer
+
+from datasets import load_dataset
 
 
 greedy_search = {
@@ -124,7 +125,7 @@ def main(
     base_model: str, # "decapoda-research/llama-13b-hf",
     peft: bool, # True,
     load_in_8bit: bool, # True
-    path_to_exams: str, # eval/data/test/
+    output_path: str, # eval/data/test/
     ntries: int = 5, 
     skip_if_exists: bool = True,
 ):
@@ -137,39 +138,38 @@ def main(
         load_in_8bit=load_in_8bit,
     ) 
     
-    for step_idx in [1,2,3]: 
-        
-        with open(os.path.join(path_to_exams, f"step{step_idx}.json")) as fp: 
-            step = json.load(fp)   
-        outname = os.path.join(path_to_exams, f"step{step_idx}_{model_name.split('/')[-1]}.json")
-        if os.path.exists(outname): 
-            with open(outname, "r") as fp:
-                answers = json.load(fp)
-        else: 
-            answers = []
-        
-        pbar = tqdm(step)
-        pbar.set_description_str(f"Evaluating USMLE Step {step_idx}")
-        for i, question in enumerate(pbar): 
-            if skip_if_exists and i <= len(answers):
-                continue
-            for j in range(ntries): 
-                response = model(
-                    instruction="Answer this multiple choice question.", 
-                    input=format_question(question), 
-                    output="The Answer to the question is:",
-                    **sampling
-                )
-                response = strip_special_chars(response)
-                if starts_with_capital_letter(response): 
-                    pbar.set_postfix_str(f"")
-                    break
-                else: 
-                    pbar.set_postfix_str(f"Output not satisfactoy, retrying {j+1}/{ntries}")
-            question["answer"] = response
-            answers.append(question)
-            with open(outname, "w+") as fp:
-                json.dump(answers, fp)
+    # using USMLE from MedQA - which is also part of bigbio
+    data = load_dataset('bigbio/med_qa', 'med_qa_en_source', 'test')
+
+    outname = os.path.join(output_path, f"output_{model_name.split('/')[-1]}.json")
+    if os.path.exists(outname): 
+        with open(outname, "r") as fp:
+            answers = json.load(fp)
+    else: 
+        answers = []
+    
+    pbar = tqdm(data)
+    pbar.set_description_str(f"Evaluating MedQA - USMLE")
+    for i, question in enumerate(pbar): 
+        if skip_if_exists and i <= len(answers):
+            continue
+        for j in range(ntries): 
+            response = model(
+                instruction="Answer this multiple choice question.", 
+                input=format_question(question), 
+                output="The Answer to the question is:",
+                **sampling
+            )
+            response = strip_special_chars(response)
+            if starts_with_capital_letter(response): 
+                pbar.set_postfix_str(f"")
+                break
+            else: 
+                pbar.set_postfix_str(f"Output not satisfactoy, retrying {j+1}/{ntries}")
+        question["model_answer"] = response
+        answers.append(question)
+        with open(outname, "w+") as fp:
+            json.dump(answers, fp)
 
 
 if __name__ == "__main__": 

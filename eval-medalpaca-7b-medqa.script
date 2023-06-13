@@ -1,0 +1,30 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=2
+#SBATCH --job-name=alpaca-eval     # Specify job name
+#SBATCH --partition=gpu            # Specify partition name
+#SBATCH --mem=32G                 
+#SBATCH --gres=gpu:v100-sxm2:1
+#SBATCH --time=08:00:00            # Set a limit on the total run time
+#SBATCH --output=logs_medalpaca7b_eval.o%j    # File name for standard output
+#SBATCH --error=errors_medalpaca7b_eval.e%j   # File name for standard error output
+
+module load cuda/11.7
+module load anaconda3/2022.05
+
+# activate conda environment
+source activate medalpaca
+
+# recommended to manually set the hf cache dir, as the files are huge
+export TRANSFORMERS_CACHE=/work/frink/yun.hy/.cache
+export HUGGINGFACE_HUB_CACHE=/work/frink/yun.hy/.cache
+export HF_HOME=/work/frink/yun.hy/.cache
+export XDG_CACHE_HOME=/work/frink/yun.hy/.cache
+
+python eval_usmle.py \
+    --model_name 'medalpaca/medalpaca-lora-7b-8bit' \
+    --prompt_template '../medalpaca/prompt_templates/medalpaca.json' \
+    --base_model 'decapoda-research/llama-7b-hf' \
+    --peft True \
+    --load_in_8bit True \
+    --output_path 'data/test/'
